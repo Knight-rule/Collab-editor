@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CollabEdit - Real-time Collaborative Editor</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8f9fa;
+      --bg-tertiary: #e8eaed;
+      --text-primary: #202124;
+      --text-secondary: #5f6368;
+      --border-color: #dadce0;
+      --accent-color: #1a73e8;
+      --accent-hover: #1557b0;
+      --toolbar-bg: #edf2fa;
+      --shadow: 0 2px 8px rgba(0,0,0,0.1);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #1f1f1f;
+      --bg-secondary: #2d2d2d;
+      --bg-tertiary: #3c3c3c;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --border-color: #5f6368;
+      --accent-color: #8ab4f8;
+      --accent-hover: #aecbfa;
+      --toolbar-bg: #2d2d2d;
+      --shadow: 0 2px 8px rgba(0,0,0,0.3);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    body {
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 22px;
+      color: var(--accent-color);
+      font-weight: 500;
+    }
+
+    .logo i {
+      font-size: 28px;
+    }
+
+    .doc-title-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .doc-title {
+      font-size: 18px;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: 4px;
+      width: 300px;
+      font-weight: 400;
+    }
+
+    .doc-title:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .doc-title:focus {
+      outline: none;
+      background: var(--bg-primary);
+      box-shadow: 0 0 0 2px var(--accent-color);
+    }
+
+    .save-status {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .save-status.saved {
+      color: #34a853;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--accent-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .users-panel {
+      display: flex;
+      align-items: center;
+      gap: -8px;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: 500;
+      margin-left: -8px;
+      border: 2px solid var(--bg-primary);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .user-avatar:first-child {
+      margin-left: 0;
+    }
+
+    .user-avatar:hover::after {
+      content: attr(data-name);
+      position: absolute;
+      bottom: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      z-index: 1000;
+    }
+
+    .toolbar {
+      background: var(--toolbar-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 4px 16px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-color);
+      margin: 0 8px;
+    }
+
+    .toolbar-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+    }
+
+    .toolbar-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .toolbar-btn.active {
+      background: var(--accent-color);
+      color: white;
+    }
+
+    .toolbar-btn i {
+      font-size: 14px;
+    }
+
+    .toolbar-select {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      min-width: 60px;
+    }
+
+    .toolbar-select:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .font-size-select {
+      min-width: 55px;
+    }
+
+    .font-family-select {
+      min-width: 120px;
+    }
+
+    .main-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-tertiary);
+      padding: 20px;
+    }
+
+    .editor {
+      max-width: 816px;
+      margin: 0 auto;
+      min-height: 1056px;
+      background: var(--bg-primary);
+      box-shadow: var(--shadow);
+      padding: 72px 72px 72px 72px;
+      outline: none;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      position: relative;
+    }
+
+    .editor:focus {
+      box-shadow: var(--shadow-lg);
+    }
+
+    .editor p {
+      margin-bottom: 8px;
+    }
+
+    .editor ul, .editor ol {
+      margin-left: 24px;
+      margin-bottom: 8px;
+    }
+
+    .cursor-caret {
+      position: absolute;
+      width: 2px;
+      height: 20px;
+      pointer-events: none;
+      z-index: 100;
+      animation: blink 1s infinite;
+    }
+
+    .cursor-label {
+      position: absolute;
+      top: -20px;
+      left: 0;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: white;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    .sidebar {
+      width: 240px;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .connected-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+
+    .connected-user:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .connected-user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .connected-user-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .connected-user-name {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .connected-user-status {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .typing-indicator {
+      font-size: 11px;
+      color: var(--accent-color);
+      font-style: italic;
+    }
+
+    .stats-section {
+      padding: 16px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .stats-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-weight: 500;
+    }
+
+    .footer {
+      background: var(--bg-primary);
+      border-top: 1px solid var(--border-color);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zoom-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .zoom-btn:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-primary);
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .modal-body {
+      margin-bottom: 24px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .export-option {
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+    }
+
+    .export-option:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-color);
+    }
+
+    .export-option i {
+      font-size: 24px;
+      color: var(--accent-color);
+    }
+
+    .export-option-text h4 {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .export-option-text p {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .notification {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 14px;
+      box-shadow: var(--shadow-lg);
+      z-index: 1001;
+      display: none;
+    }
+
+    .notification.show {
+      display: block;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    .color-picker-wrapper {
+      position: relative;
+    }
+
+    .color-picker-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 8px;
+      display: none;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+
+    .color-picker-dropdown.show {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+    }
+
+    .color-option {
+      width: 24px;
+      height: 24px;
+      border: 2px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .color-option:hover {
+      border-color: var(--text-secondary);
+    }
+
+    .color-option.active {
+      border-color: var(--accent-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <i class="fas fa-file-alt"></i>
+      <span>CollabEdit</span>
+    </div>
+    <div class="doc-title-container">
+      <input type="text" class="doc-title" id="docTitle" value="Untitled Document" placeholder="Untitled Document">
+      <div class="save-status" id="saveStatus">
+        <i class="fas fa-cloud"></i>
+        <span>All changes saved</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="users-panel" id="usersPanel"></div>
+      <button class="btn btn-secondary" id="exportBtn">
+        <i class="fas fa-download"></i>
+        Export
+      </button>
+      <button class="icon-btn" id="themeToggle" title="Toggle theme">
+        <i class="fas fa-moon"></i>
+      </button>
+      <button class="icon-btn" id="shareBtn" title="Share">
+        <i class="fas fa-share-alt"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="undoBtn" title="Undo (Ctrl+Z)">
+        <i class="fas fa-undo"></i>
+      </button>
+      <button class="toolbar-btn" id="redoBtn" title="Redo (Ctrl+Y)">
+        <i class="fas fa-redo"></i>
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <select class="toolbar-select font-family-select" id="fontFamily" title="Font family">
+        <option value="Arial">Arial</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Courier New">Courier New</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Helvetica">Helvetica</option>
+      </select>
+      <select class="toolbar-select font-size-select" id="fontSize" title="Font size">
+        <option value="1">8</option>
+        <option value="2">10</option>
+        <option value="3" selected>12</option>
+        <option value="4">14</option>
+        <option value="5">18</option>
+        <option value="6">24</option>
+        <option value="7">36</option>
+      </select>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="boldBtn" title="Bold (Ctrl+B)">
+        <i class="fas fa-bold"></i>
+      </button>
+      <button class="toolbar-btn" id="italicBtn" title="Italic (Ctrl+I)">
+        <i class="fas fa-italic"></i>
+      </button>
+      <button class="toolbar-btn" id="underlineBtn" title="Underline (Ctrl+U)">
+        <i class="fas fa-underline"></i>
+      </button>
+      <button class="toolbar-btn" id="strikethroughBtn" title="Strikethrough">
+        <i class="fas fa-strikethrough"></i>
+      </button>
+      <div class="color-picker-wrapper">
+        <button class="toolbar-btn" id="textColorBtn" title="Text color">
+          <i class="fas fa-font"></i>
+          <div style="width: 14px; height: 3px; background: #000; position: absolute; bottom: 6px;"></div>
+        </button>
+        <div class="color-picker-dropdown" id="textColorPicker"></div>
+      </div>
+      <div class="color-picker-wrapper">
+        <button class="toolbar-btn" id="highlightBtn" title="Highlight color">
+          <i class="fas fa-highlighter"></i>
+        </button>
+        <div class="color-picker-dropdown" id="highlightPicker"></div>
+      </div>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="alignLeftBtn" title="Align left">
+        <i class="fas fa-align-left"></i>
+      </button>
+      <button class="toolbar-btn" id="alignCenterBtn" title="Align center">
+        <i class="fas fa-align-center"></i>
+      </button>
+      <button class="toolbar-btn" id="alignRightBtn" title="Align right">
+        <i class="fas fa-align-right"></i>
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="bulletListBtn" title="Bullet list">
+        <i class="fas fa-list-ul"></i>
+      </button>
+      <button class="toolbar-btn" id="numberedListBtn" title="Numbered list">
+        <i class="fas fa-list-ol"></i>
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="indentBtn" title="Increase indent">
+        <i class="fas fa-indent"></i>
+      </button>
+      <button class="toolbar-btn" id="outdentBtn" title="Decrease indent">
+        <i class="fas fa-outdent"></i>
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="clearFormatBtn" title="Clear formatting">
+        <i class="fas fa-text-slash"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="editor-container">
+      <div class="editor-wrapper">
+        <div class="editor" id="editor" contenteditable="true" spellcheck="true">
+          <p>Welcome to CollabEdit - a real-time collaborative editor!</p>
+          <p>Start typing to see the magic happen. Share the URL with others to collaborate in real-time.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <i class="fas fa-users"></i>
+        <span>Connected Users</span>
+      </div>
+      <div class="sidebar-content" id="connectedUsers"></div>
+      <div class="stats-section">
+        <div class="stats-title">Document Statistics</div>
+        <div class="stat-item">
+          <span>Characters</span>
+          <span class="stat-value" id="charCount">0</span>
+        </div>
+        <div class="stat-item">
+          <span>Words</span>
+          <span class="stat-value" id="wordCount">0</span>
+        </div>
+        <div class="stat-item">
+          <span>Lines</span>
+          <span class="stat-value" id="lineCount">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoomOut" title="Zoom out">
+        <i class="fas fa-minus"></i>
+      </button>
+      <span id="zoomLevel">100%</span>
+      <button class="zoom-btn" id="zoomIn" title="Zoom in">
+        <i class="fas fa-plus"></i>
+      </button>
+    </div>
+    <div id="documentId"></div>
+  </div>
+
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal">
+      <div class="modal-title">Export Document</div>
+      <div class="modal-body">
+        <div class="export-option" id="exportHtml">
+          <i class="fas fa-file-code"></i>
+          <div class="export-option-text">
+            <h4>HTML</h4>
+            <p>Export as a formatted HTML file</p>
+          </div>
+        </div>
+        <div class="export-option" id="exportText">
+          <i class="fas fa-file-alt"></i>
+          <div class="export-option-text">
+            <h4>Plain Text</h4>
+            <p>Export as a plain text file</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="closeExportModal">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notification" id="notification"></div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const docTitle = document.getElementById('docTitle');
+    const saveStatus = document.getElementById('saveStatus');
+    const usersPanel = document.getElementById('usersPanel');
+    const connectedUsers = document.getElementById('connectedUsers');
+    const charCount = document.getElementById('charCount');
+    const wordCount = document.getElementById('wordCount');
+    const lineCount = document.getElementById('lineCount');
+    const documentId = document.getElementById('documentId');
+    const notification = document.getElementById('notification');
+    const exportModal = document.getElementById('exportModal');
+
+    let ws = null;
+    let currentUser = null;
+    let connectedUsersList = [];
+    let typingTimeout = null;
+    let isTyping = false;
+    let zoom = 100;
+
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('room') || Math.random().toString(36).substring(7);
+    documentId.textContent = `Room: ${roomId}`;
+
+    if (!params.get('room')) {
+      window.history.replaceState({}, '', `?room=${roomId}`);
+    }
+
+    function connect() {
+      ws = new WebSocket(`ws://${window.location.host}`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          type: 'join',
+          room: roomId,
+          userId: localStorage.getItem('userId') || Date.now().toString()
+        }));
+        showNotification('Connected to server');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleMessage(data);
+      };
+
+      ws.onclose = () => {
+        showNotification('Disconnected from server. Reconnecting...');
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    }
+
+    function handleMessage(data) {
+      switch (data.type) {
+        case 'init':
+          currentUser = data.user;
+          localStorage.setItem('userId', currentUser.id);
+          editor.innerHTML = data.content || '<p>Welcome to CollabEdit!</p>';
+          docTitle.value = data.title || 'Untitled Document';
+          connectedUsersList = data.users;
+          updateUsersPanel();
+          updateConnectedUsers();
+          updateStats();
+          break;
+
+        case 'content_update':
+          if (data.userId !== currentUser.id) {
+            const sel = window.getSelection();
+            const range = sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+            const cursorPos = range ? range.startOffset : 0;
+            editor.innerHTML = data.content;
+            showNotification(`${getUserById(data.userId)?.name || 'Someone'} made edits`);
+          }
+          break;
+
+        case 'title_update':
+          if (data.userId !== currentUser.id) {
+            docTitle.value = data.title;
+          }
+          break;
+
+        case 'user_joined':
+          connectedUsersList.push(data.user);
+          updateUsersPanel();
+          updateConnectedUsers();
+          showNotification(`${data.user.name} joined the document`);
+          break;
+
+        case 'user_left':
+          const leftUser = connectedUsersList.find(u => u.id === data.userId);
+          connectedUsersList = connectedUsersList.filter(u => u.id !== data.userId);
+          updateUsersPanel();
+          updateConnectedUsers();
+          if (leftUser) {
+            showNotification(`${leftUser.name} left the document`);
+          }
+          break;
+
+        case 'cursor_update':
+          updateRemoteCursor(data);
+          break;
+
+        case 'typing_indicator':
+          updateTypingIndicator(data);
+          break;
+      }
+    }
+
+    function getUserById(id) {
+      return connectedUsersList.find(u => u.id === id);
+    }
+
+    function updateUsersPanel() {
+      usersPanel.innerHTML = connectedUsersList.map(user => `
+        <div class="user-avatar" style="background-color: ${user.color}" data-name="${user.name}">
+          ${user.name.split(' ').map(n => n[0]).join('')}
+        </div>
+      `).join('');
+    }
+
+    function updateConnectedUsers() {
+      connectedUsers.innerHTML = connectedUsersList.map(user => `
+        <div class="connected-user">
+          <div class="connected-user-avatar" style="background-color: ${user.color}">
+            ${user.name.split(' ').map(n => n[0]).join('')}
+          </div>
+          <div class="connected-user-info">
+            <div class="connected-user-name">${user.name}${user.id === currentUser?.id ? ' (You)' : ''}</div>
+            <div class="connected-user-status">Online</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateTypingIndicator(data) {
+      const userEl = connectedUsers.querySelector(`[data-user-id="${data.userId}"]`);
+      if (userEl) {
+        const statusEl = userEl.querySelector('.connected-user-status');
+        if (data.isTyping) {
+          statusEl.innerHTML = '<span class="typing-indicator">Typing...</span>';
+        } else {
+          statusEl.textContent = 'Online';
+        }
+      }
+    }
+
+    function updateRemoteCursor(data) {
+      const existingCaret = document.getElementById(`cursor-${data.userId}`);
+      if (existingCaret) {
+        existingCaret.remove();
+      }
+
+      if (data.cursor) {
+        const caret = document.createElement('div');
+        caret.id = `cursor-${data.userId}`;
+        caret.className = 'cursor-caret';
+        caret.style.backgroundColor = data.userColor;
+        caret.style.left = `${data.cursor.x}px`;
+        caret.style.top = `${data.cursor.y}px`;
+
+        const label = document.createElement('div');
+        label.className = 'cursor-label';
+        label.style.backgroundColor = data.userColor;
+        label.textContent = data.userName;
+        caret.appendChild(label);
+
+        editor.appendChild(caret);
+      }
+    }
+
+    function updateStats() {
+      const text = editor.innerText || '';
+      charCount.textContent = text.length;
+      wordCount.textContent = text.trim() ? text.trim().split(/\s+/).length : 0;
+      lineCount.textContent = editor.children.length;
+    }
+
+    function showNotification(message) {
+      notification.textContent = message;
+      notification.classList.add('show');
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    function saveStatusUpdating() {
+      saveStatus.classList.remove('saved');
+      saveStatus.innerHTML = '<i class="fas fa-sync fa-spin"></i><span>Saving...</span>';
+    }
+
+    function saveStatusSaved() {
+      saveStatus.classList.add('saved');
+      saveStatus.innerHTML = '<i class="fas fa-cloud"></i><span>All changes saved</span>';
+    }
+
+    editor.addEventListener('input', () => {
+      updateStats();
+      saveStatusUpdating();
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'content',
+          content: editor.innerHTML
+        }));
+
+        if (!isTyping) {
+          isTyping = true;
+          ws.send(JSON.stringify({
+            type: 'typing',
+            isTyping: true
+          }));
+        }
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+          isTyping = false;
+          ws.send(JSON.stringify({
+            type: 'typing',
+            isTyping: false
+          }));
+        }, 1000);
+
+        setTimeout(saveStatusSaved, 500);
+      }
+    });
+
+    editor.addEventListener('keyup', (e) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          const editorRect = editor.getBoundingClientRect();
+
+          ws.send(JSON.stringify({
+            type: 'cursor',
+            cursor: {
+              x: rect.left - editorRect.left,
+              y: rect.top - editorRect.top
+            }
+          }));
+        }
+      }
+    });
+
+    docTitle.addEventListener('change', () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'title',
+          title: docTitle.value
+        }));
+      }
+    });
+
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      document.execCommand('undo');
+    });
+
+    document.getElementById('redoBtn').addEventListener('click', () => {
+      document.execCommand('redo');
+    });
+
+    document.getElementById('boldBtn').addEventListener('click', () => {
+      document.execCommand('bold');
+      updateToolbarState();
+    });
+
+    document.getElementById('italicBtn').addEventListener('click', () => {
+      document.execCommand('italic');
+      updateToolbarState();
+    });
+
+    document.getElementById('underlineBtn').addEventListener('click', () => {
+      document.execCommand('underline');
+      updateToolbarState();
+    });
+
+    document.getElementById('strikethroughBtn').addEventListener('click', () => {
+      document.execCommand('strikeThrough');
+      updateToolbarState();
+    });
+
+    document.getElementById('fontFamily').addEventListener('change', (e) => {
+      document.execCommand('fontName', false, e.target.value);
+    });
+
+    document.getElementById('fontSize').addEventListener('change', (e) => {
+      document.execCommand('fontSize', false, e.target.value);
+    });
+
+    document.getElementById('alignLeftBtn').addEventListener('click', () => {
+      document.execCommand('justifyLeft');
+      updateToolbarState();
+    });
+
+    document.getElementById('alignCenterBtn').addEventListener('click', () => {
+      document.execCommand('justifyCenter');
+      updateToolbarState();
+    });
+
+    document.getElementById('alignRightBtn').addEventListener('click', () => {
+      document.execCommand('justifyRight');
+      updateToolbarState();
+    });
+
+    document.getElementById('bulletListBtn').addEventListener('click', () => {
+      document.execCommand('insertUnorderedList');
+      updateToolbarState();
+    });
+
+    document.getElementById('numberedListBtn').addEventListener('click', () => {
+      document.execCommand('insertOrderedList');
+      updateToolbarState();
+    });
+
+    document.getElementById('indentBtn').addEventListener('click', () => {
+      document.execCommand('indent');
+    });
+
+    document.getElementById('outdentBtn').addEventListener('click', () => {
+      document.execCommand('outdent');
+    });
+
+    document.getElementById('clearFormatBtn').addEventListener('click', () => {
+      document.execCommand('removeFormat');
+    });
+
+    function updateToolbarState() {
+      document.getElementById('boldBtn').classList.toggle('active', document.queryCommandState('bold'));
+      document.getElementById('italicBtn').classList.toggle('active', document.queryCommandState('italic'));
+      document.getElementById('underlineBtn').classList.toggle('active', document.queryCommandState('underline'));
+      document.getElementById('strikethroughBtn').classList.toggle('active', document.queryCommandState('strikeThrough'));
+      document.getElementById('alignLeftBtn').classList.toggle('active', document.queryCommandState('justifyLeft'));
+      document.getElementById('alignCenterBtn').classList.toggle('active', document.queryCommandState('justifyCenter'));
+      document.getElementById('alignRightBtn').classList.toggle('active', document.queryCommandState('justifyRight'));
+      document.getElementById('bulletListBtn').classList.toggle('active', document.queryCommandState('insertUnorderedList'));
+      document.getElementById('numberedListBtn').classList.toggle('active', document.queryCommandState('insertOrderedList'));
+    }
+
+    editor.addEventListener('mouseup', updateToolbarState);
+    editor.addEventListener('keyup', updateToolbarState);
+
+    const colors = [
+      '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#efefef', '#f3f3f3', '#ffffff',
+      '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff', '#9900ff', '#ff00ff',
+      '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#cfe2f3', '#d9d2e9', '#ead1dc',
+      '#dd7e6b', '#ea9999', '#f9cb9c', '#ffe599', '#b6d7a8', '#a2c4c9', '#a4c2f4', '#9fc5e8', '#b4a7d6', '#d5a6bd',
+      '#cc4125', '#e06666', '#f6b26b', '#ffd966', '#93c47d', '#76a5af', '#6d9eeb', '#6fa8dc', '#8e7cc3', '#c27ba0',
+      '#a61c00', '#cc0000', '#e69138', '#f1c232', '#6aa84f', '#45818e', '#3c78d8', '#3d85c6', '#674ea7', '#a64d79',
+      '#85200c', '#990000', '#b45f06', '#bf9000', '#38761d', '#134f5c', '#1155cc', '#0b5394', '#351c75', '#741b47',
+      '#5b0f00', '#660000', '#783f04', '#7f6000', '#274e13', '#0c343d', '#1c4587', '#073763', '#20124d', '#4c1130'
+    ];
+
+    function createColorPicker(containerId, command) {
+      const container = document.getElementById(containerId);
+      colors.forEach(color => {
+        const colorOption = document.createElement('div');
+        colorOption.className = 'color-option';
+        colorOption.style.backgroundColor = color;
+        colorOption.addEventListener('click', () => {
+          document.execCommand(command, false, color);
+          container.classList.remove('show');
+        });
+        container.appendChild(colorOption);
+      });
+    }
+
+    createColorPicker('textColorPicker', 'foreColor');
+    createColorPicker('highlightPicker', 'hiliteColor');
+
+    document.getElementById('textColorBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('textColorPicker').classList.toggle('show');
+      document.getElementById('highlightPicker').classList.remove('show');
+    });
+
+    document.getElementById('highlightBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('highlightPicker').classList.toggle('show');
+      document.getElementById('textColorPicker').classList.remove('show');
+    });
+
+    document.addEventListener('click', () => {
+      document.getElementById('textColorPicker').classList.remove('show');
+      document.getElementById('highlightPicker').classList.remove('show');
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      exportModal.classList.add('active');
+    });
+
+    document.getElementById('closeExportModal').addEventListener('click', () => {
+      exportModal.classList.remove('active');
+    });
+
+    exportModal.addEventListener('click', (e) => {
+      if (e.target === exportModal) {
+        exportModal.classList.remove('active');
+      }
+    });
+
+    document.getElementById('exportHtml').addEventListener('click', () => {
+      const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${docTitle.value}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+    h1 { border-bottom: 2px solid #1a73e8; padding-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h1>${docTitle.value}</h1>
+  ${editor.innerHTML}
+</body>
+</html>`;
+
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docTitle.value}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      exportModal.classList.remove('active');
+      showNotification('Exported as HTML');
+    });
+
+    document.getElementById('exportText').addEventListener('click', () => {
+      const textContent = editor.innerText;
+      const blob = new Blob([textContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docTitle.value}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      exportModal.classList.remove('active');
+      showNotification('Exported as plain text');
+    });
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      const icon = document.querySelector('#themeToggle i');
+      icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    });
+
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      document.body.setAttribute('data-theme', savedTheme);
+      const icon = document.querySelector('#themeToggle i');
+      icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    document.getElementById('zoomIn').addEventListener('click', () => {
+      if (zoom < 200) {
+        zoom += 10;
+        updateZoom();
+      }
+    });
+
+    document.getElementById('zoomOut').addEventListener('click', () => {
+      if (zoom > 50) {
+        zoom -= 10;
+        updateZoom();
+      }
+    });
+
+    function updateZoom() {
+      document.getElementById('zoomLevel').textContent = `${zoom}%`;
+      editor.style.transform = `scale(${zoom / 100})`;
+      editor.style.transformOrigin = 'top center';
+    }
+
+    document.getElementById('shareBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.href);
+      showNotification('Link copied to clipboard!');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'b':
+            e.preventDefault();
+            document.execCommand('bold');
+            updateToolbarState();
+            break;
+          case 'i':
+            e.preventDefault();
+            document.execCommand('italic');
+            updateToolbarState();
+            break;
+          case 'u':
+            e.preventDefault();
+            document.execCommand('underline');
+            updateToolbarState();
+            break;
+          case 'z':
+            if (e.shiftKey) {
+              e.preventDefault();
+              document.execCommand('redo');
+            }
+            break;
+        }
+      }
+    });
+
+    connect();
+    updateStats();
+  </script>
+</body>
+</html>
